@@ -17,19 +17,24 @@
 #include <cstdint>
 #include <vector>
 
+// constants
+#define SPH_PARTICLE_RADIUS 0.005f
+#define SPH_TIME_STEP 0.0001f
+#define SPH_PARTICLE_COUNT 20000
+
+#define SPH_WORK_GROUP_SIZE 128
+// work group count is the ceiling of particle count divided by work group size
+#define SPH_GROUP_COUNT ((SPH_PARTICLE_COUNT + SPH_WORK_GROUP_SIZE - 1) / SPH_WORK_GROUP_SIZE)
+
 namespace sph
 {
-//constants
-const float time_step = 0.0001f;
-const float particle_length = 0.005f;
-const size_t particle_count = 20000;
-const size_t work_group_size = 128;
-const uint32_t group_count = (size_t)std::ceil((float)particle_count / work_group_size);
 
 class application
 {
 public:
     application();
+    explicit application(int64_t scene_id);
+    application(const application&) = delete;
     ~application();
     void run();
 
@@ -41,6 +46,7 @@ private:
     void destroy_vulkan();
 
     void main_loop();
+    void step_forward();
     void render();
 
     void create_instance();
@@ -71,22 +77,21 @@ private:
     void create_compute_pipelines();
     void create_compute_command_pool();
     void create_compute_command_buffer();
-    void create_compute_fence();
 
-    void initialize_buffers();
+    void set_initial_particle_data();
 
-    GLFWwindow* window;
+    GLFWwindow* window = nullptr;
     uint32_t window_height = 1000;
     uint32_t window_width = 1000;
     
     std::chrono::steady_clock::time_point frame_start;
-    std::chrono::steady_clock::time_point cpu_end;
     std::chrono::steady_clock::time_point frame_end;
 
-    uint64_t frame_number = 0;
-    float frame_time = 0;
-    float cpu_time = 0;
-    float gpu_time = 0;
+    uint64_t frame_number = 1;
+    double frame_time = 0;
+
+    bool paused = false;
+    uint64_t scene_id = 0;
 
     // vulkan
     VkInstance instance_handle = VK_NULL_HANDLE;
@@ -154,7 +159,6 @@ private:
     VkDescriptorBufferInfo particle_descriptor_buffer_info = { VK_NULL_HANDLE, 0, 0 };
 
     // synchronization
-    VkFence compute_fence_handle = VK_NULL_HANDLE;
     VkSemaphore image_available_semaphore_handle = VK_NULL_HANDLE;
     VkSemaphore render_finished_semaphore_handle = VK_NULL_HANDLE;
 
