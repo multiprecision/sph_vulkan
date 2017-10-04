@@ -749,7 +749,7 @@ void application::create_buffers()
     particle_buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     particle_buffer_create_info.pNext = nullptr;
     particle_buffer_create_info.flags = 0;
-    particle_buffer_create_info.size = sizeof(particle_t) * particle_count;
+    particle_buffer_create_info.size = sizeof(particle_type) * particle_count;
     particle_buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     particle_buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     particle_buffer_create_info.queueFamilyIndexCount = 0;
@@ -786,7 +786,7 @@ void application::initialize_buffers()
     staging_buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     staging_buffer_create_info.pNext = nullptr;
     staging_buffer_create_info.flags = 0;
-    staging_buffer_create_info.size = sizeof(particle_t) * particle_count;
+    staging_buffer_create_info.size = sizeof(particle_type) * particle_count;
     staging_buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     staging_buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     staging_buffer_create_info.queueFamilyIndexCount = 0;
@@ -815,9 +815,9 @@ void application::initialize_buffers()
     vkMapMemory(logical_device_handle, staging_buffer_memory_device_handle, 0, staging_buffer_memory_requirements.size, 0, &map_ptr);
 
 	{
-		particle_t* initial_particle_data = new particle_t[particle_count];
+		particle_type* initial_particle_data = new particle_type[particle_count];
 		// initialize to zero
-		std::memset(initial_particle_data, 0, sizeof(particle_t) * particle_count);
+		std::memset(initial_particle_data, 0, sizeof(particle_type) * particle_count);
 		// initialize position
 		// Vulkan coordinate system is different from OpenGL! y axis is pointing down
 		size_t index = 0;
@@ -1191,7 +1191,7 @@ void application::create_graphics_pipeline_layout()
 
     VkVertexInputBindingDescription vertex_input_binding_description;
     vertex_input_binding_description.binding = 0;
-    vertex_input_binding_description.stride = sizeof(particle_t);
+    vertex_input_binding_description.stride = sizeof(particle_type);
     vertex_input_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
     VkVertexInputAttributeDescription vertex_input_attribute_description;

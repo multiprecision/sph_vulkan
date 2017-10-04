@@ -140,7 +140,7 @@ private:
     VkPipelineLayout compute_pipeline_layout_handle = VK_NULL_HANDLE;
     VkPipeline compute_pipeline_handles[3] = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE };
 
-    struct particle_t
+    struct particle_type
     {
         glm::vec2 position;
         glm::vec2 velocity;
@@ -158,7 +158,7 @@ private:
     VkSemaphore image_available_semaphore_handle = VK_NULL_HANDLE;
     VkSemaphore render_finished_semaphore_handle = VK_NULL_HANDLE;
 
-    // helper function
+    // helper functions
 
     VkShaderModule create_shader_module_from_file(std::string path_to_file);
     // get index to the memory type

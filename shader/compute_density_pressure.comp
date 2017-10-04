@@ -6,7 +6,7 @@
 
 layout (local_size_x = WORK_GROUP_SIZE) in;
 
-struct particle_t
+struct particle_type
 {
    vec2 position;
    vec2 velocity;
@@ -17,7 +17,7 @@ struct particle_t
 
 layout(std430, binding = 0) buffer position_block
 {
-    particle_t particles[];
+    particle_type particles[];
 };
 
 //constants
