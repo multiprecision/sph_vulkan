@@ -19,9 +19,8 @@
 #include <atomic>
 
 // constants
-#define SPH_PARTICLE_RADIUS 0.005f
-#define SPH_TIME_STEP 0.0001f
 #define SPH_PARTICLE_COUNT 20000
+#define SPH_PARTICLE_RADIUS 0.005f
 
 #define SPH_WORK_GROUP_SIZE 128
 // work group count is the ceiling of particle count divided by work group size
@@ -29,6 +28,16 @@
 
 namespace sph
 {
+
+
+struct particle
+{
+    glm::vec2 position;
+    glm::vec2 velocity;
+    glm::vec2 force;
+    float density;
+    float pressure;
+};
 
 class application
 {
@@ -143,15 +152,6 @@ private:
 
     VkPipelineLayout compute_pipeline_layout_handle = VK_NULL_HANDLE;
     VkPipeline compute_pipeline_handles[3] = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE };
-
-    struct particle_type
-    {
-        glm::vec2 position;
-        glm::vec2 velocity;
-        glm::vec2 force;
-        float density;
-        float pressure;
-    };
 
     VkBuffer particle_buffer_handle = VK_NULL_HANDLE;
     VkDeviceMemory particle_buffer_device_memory_handle = VK_NULL_HANDLE;

@@ -194,18 +194,18 @@ void application::destroy_vulkan()
     vkDestroyFence(logical_device_handle, compute_finished_fence_handle, nullptr);
     vkDestroySemaphore(logical_device_handle, render_finished_semaphore_handle, nullptr);
     vkDestroySemaphore(logical_device_handle, image_available_semaphore_handle, nullptr);
-    for (auto handle : graphics_command_buffer_handles)
+    for (const auto& handle : graphics_command_buffer_handles)
     {
         vkFreeCommandBuffers(logical_device_handle, graphics_command_pool_handle, 1, &handle);
     }
     vkDestroyCommandPool(logical_device_handle, graphics_command_pool_handle, nullptr);
     vkDestroyPipeline(logical_device_handle, graphics_pipeline_handle, nullptr);
-    for (auto handle : shader_module_handles)
+    for (const auto& handle : shader_module_handles)
     {
         vkDestroyShaderModule(logical_device_handle, handle, nullptr);
     }
     vkDestroyPipelineLayout(logical_device_handle, graphics_pipeline_layout_handle, nullptr);
-    for (auto handle : swap_chain_frame_buffer_handles)
+    for (const auto& handle : swap_chain_frame_buffer_handles)
     {
         vkDestroyFramebuffer(logical_device_handle, handle, nullptr);
     }
@@ -218,7 +218,7 @@ void application::destroy_vulkan()
     vkDestroyPipelineCache(logical_device_handle, global_pipeline_cache_handle, nullptr);
 
     vkDestroyRenderPass(logical_device_handle, render_pass_handle, nullptr);
-    for (auto handle : swap_chain_image_view_handles)
+    for (const auto& handle : swap_chain_image_view_handles)
     {
         vkDestroyImageView(logical_device_handle, handle, nullptr);
     }
@@ -480,7 +480,7 @@ void application::select_physical_device()
         << VK_VERSION_MINOR(physical_device_properties.apiVersion) << "."
         << VK_VERSION_PATCH(physical_device_properties.apiVersion) << std::endl;
     std::cout << "  available extensions:" << std::endl;
-    for (auto& extension : physical_device_extensions)
+    for (const auto& extension : physical_device_extensions)
     {
         std::cout << "    " << extension.extensionName << " spec_ver: "
             << VK_VERSION_MAJOR(extension.specVersion) << "."
@@ -780,7 +780,7 @@ void application::create_buffers()
     particle_buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     particle_buffer_create_info.pNext = nullptr;
     particle_buffer_create_info.flags = 0;
-    particle_buffer_create_info.size = sizeof(particle_type) * SPH_PARTICLE_COUNT;
+    particle_buffer_create_info.size = sizeof(particle) * SPH_PARTICLE_COUNT;
     particle_buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     particle_buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     particle_buffer_create_info.queueFamilyIndexCount = 0;
@@ -817,7 +817,7 @@ void application::set_initial_particle_data()
     staging_buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     staging_buffer_create_info.pNext = nullptr;
     staging_buffer_create_info.flags = 0;
-    staging_buffer_create_info.size = sizeof(particle_type) * SPH_PARTICLE_COUNT;
+    staging_buffer_create_info.size = sizeof(particle) * SPH_PARTICLE_COUNT;
     staging_buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     staging_buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     staging_buffer_create_info.queueFamilyIndexCount = 0;
@@ -846,9 +846,9 @@ void application::set_initial_particle_data()
     vkMapMemory(logical_device_handle, staging_buffer_memory_device_handle, 0, staging_buffer_memory_requirements.size, 0, &map_ptr);
 
     // set the initial particles data
-    particle_type initial_particle_data[SPH_PARTICLE_COUNT];
+    std::vector<particle> initial_particle_data(SPH_PARTICLE_COUNT);
     // initialize to zero
-    std::memset(initial_particle_data, 0, sizeof(particle_type) * SPH_PARTICLE_COUNT);
+    std::memset(initial_particle_data.data(), 0, sizeof(particle) * SPH_PARTICLE_COUNT);
 
     // test case 1: dropping a cube of water
     if (scene_id == 0)
@@ -880,7 +880,7 @@ void application::set_initial_particle_data()
             }
         }
     }
-    std::memcpy(map_ptr, initial_particle_data, static_cast<size_t>(staging_buffer_memory_requirements.size));
+    std::memcpy(map_ptr, initial_particle_data.data(), static_cast<size_t>(staging_buffer_memory_requirements.size));
 
     vkUnmapMemory(logical_device_handle, staging_buffer_memory_device_handle);
 
@@ -1220,7 +1220,7 @@ void application::create_graphics_pipeline_layout()
 
     VkVertexInputBindingDescription vertex_input_binding_description;
     vertex_input_binding_description.binding = 0;
-    vertex_input_binding_description.stride = sizeof(particle_type);
+    vertex_input_binding_description.stride = sizeof(particle);
     vertex_input_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
     VkVertexInputAttributeDescription vertex_input_attribute_description;
