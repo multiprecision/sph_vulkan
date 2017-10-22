@@ -20,26 +20,26 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugReportFlagsEX
 {
     std::string tags;
 
-	switch (flags)
-	{
-	case VK_DEBUG_REPORT_ERROR_BIT_EXT:
-		tags += "[ERROR]";
-		break;
-	case VK_DEBUG_REPORT_WARNING_BIT_EXT:
-		tags += "[WARNING]";
-		break;
-	case VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT:
-		tags += "[PERFORMANCE]";
-		break;
-	case VK_DEBUG_REPORT_INFORMATION_BIT_EXT:
-		tags += "[INFORMATION]";
-		break;
-	case VK_DEBUG_REPORT_DEBUG_BIT_EXT:
-		tags += "[DEBUG]";
-		break;
-	default:
-		tags += "[?]";
-	}
+    switch (flags)
+    {
+    case VK_DEBUG_REPORT_ERROR_BIT_EXT:
+        tags += "[ERROR]";
+        break;
+    case VK_DEBUG_REPORT_WARNING_BIT_EXT:
+        tags += "[WARNING]";
+        break;
+    case VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT:
+        tags += "[PERFORMANCE]";
+        break;
+    case VK_DEBUG_REPORT_INFORMATION_BIT_EXT:
+        tags += "[INFORMATION]";
+        break;
+    case VK_DEBUG_REPORT_DEBUG_BIT_EXT:
+        tags += "[DEBUG]";
+        break;
+    default:
+        tags += "[?]";
+    }
     
     switch (obj_type)
     {
@@ -182,7 +182,7 @@ void application::destroy_window()
 
 void application::destroy_vulkan()
 {
-	vkDeviceWaitIdle(logical_device_handle);
+    vkDeviceWaitIdle(logical_device_handle);
     // clean up
     vkFreeCommandBuffers(logical_device_handle, compute_command_pool_handle, 1, &compute_command_buffer_handle);
     vkDestroyCommandPool(logical_device_handle, compute_command_pool_handle, nullptr);
@@ -191,6 +191,7 @@ void application::destroy_vulkan()
     vkDestroyPipeline(logical_device_handle, compute_pipeline_handles[0], nullptr);
     vkDestroyPipeline(logical_device_handle, compute_pipeline_handles[1], nullptr);
     vkDestroyPipeline(logical_device_handle, compute_pipeline_handles[2], nullptr);
+    vkDestroyFence(logical_device_handle, compute_finished_fence_handle, nullptr);
     vkDestroySemaphore(logical_device_handle, render_finished_semaphore_handle, nullptr);
     vkDestroySemaphore(logical_device_handle, image_available_semaphore_handle, nullptr);
     for (auto handle : graphics_command_buffer_handles)
@@ -233,12 +234,13 @@ void application::destroy_vulkan()
 void application::run()
 {
     // to measure performance
-    std::thread(
+    std::thread
+    (
         [this]()
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20000));
-        std::cout << "[INFO] frame count after 20 seconds after setup (do not pause or move the window): " << frame_number << std::endl;
-    }
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(20));
+            std::cout << "[INFO] frame count after 20 seconds after setup (do not pause or move the window): " << frame_number << std::endl;
+        }
     ).detach();
 
     while (!glfwWindowShouldClose(window))
@@ -309,7 +311,8 @@ void application::initialize_vulkan()
     create_graphics_pipeline();
     create_graphics_command_pool();
     create_graphics_command_buffers();
-    create_graphics_semaphores();
+    create_semaphores();
+    create_fence();
 
     create_compute_descriptor_set_layout();
     update_compute_descriptor_sets();
@@ -1081,86 +1084,86 @@ void application::create_compute_command_pool()
 void application::create_compute_command_buffer()
 {
     // allocate command buffer
-	VkCommandBufferAllocateInfo command_buffer_allocate_info;
-	command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	command_buffer_allocate_info.pNext = nullptr;
-	command_buffer_allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	command_buffer_allocate_info.commandPool = compute_command_pool_handle;
-	command_buffer_allocate_info.commandBufferCount = 1;
+    VkCommandBufferAllocateInfo command_buffer_allocate_info;
+    command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    command_buffer_allocate_info.pNext = nullptr;
+    command_buffer_allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    command_buffer_allocate_info.commandPool = compute_command_pool_handle;
+    command_buffer_allocate_info.commandBufferCount = 1;
 
-	if (vkAllocateCommandBuffers(logical_device_handle, &command_buffer_allocate_info, &compute_command_buffer_handle) != VK_SUCCESS)
-	{
-		throw std::runtime_error("compute command buffer allocation failed");
-	}
+    if (vkAllocateCommandBuffers(logical_device_handle, &command_buffer_allocate_info, &compute_command_buffer_handle) != VK_SUCCESS)
+    {
+        throw std::runtime_error("compute command buffer allocation failed");
+    }
 
     // build command buffer
-	VkCommandBufferBeginInfo command_buffer_begin_info;
-	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	command_buffer_begin_info.pNext = nullptr;
-	command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-	command_buffer_begin_info.pInheritanceInfo = nullptr;
+    VkCommandBufferBeginInfo command_buffer_begin_info;
+    command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    command_buffer_begin_info.pNext = nullptr;
+    command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+    command_buffer_begin_info.pInheritanceInfo = nullptr;
 
-	if (vkBeginCommandBuffer(compute_command_buffer_handle, &command_buffer_begin_info) != VK_SUCCESS)
-	{
-		throw std::runtime_error("compute command buffer begin failed");
-	}
+    if (vkBeginCommandBuffer(compute_command_buffer_handle, &command_buffer_begin_info) != VK_SUCCESS)
+    {
+        throw std::runtime_error("compute command buffer begin failed");
+    }
 
-	// This memory barrier is to make sure the vertex shader in the graphics pipeline has finished reading the storage buffer before the compute pipelines start writing to the buffer
-	VkBufferMemoryBarrier buffer_memory_barrier;
-	buffer_memory_barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-	buffer_memory_barrier.pNext = nullptr;
-	buffer_memory_barrier.srcAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-	buffer_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-	buffer_memory_barrier.srcQueueFamilyIndex = graphics_presentation_compute_queue_family_index;
-	buffer_memory_barrier.dstQueueFamilyIndex = graphics_presentation_compute_queue_family_index;
-	buffer_memory_barrier.buffer = particle_buffer_handle;
-	buffer_memory_barrier.size = particle_descriptor_buffer_info.range;
-	buffer_memory_barrier.offset = 0;
+    // This memory barrier is to make sure the vertex shader in the graphics pipeline has finished reading the storage buffer before the compute pipelines start writing to the buffer
+    VkBufferMemoryBarrier buffer_memory_barrier;
+    buffer_memory_barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    buffer_memory_barrier.pNext = nullptr;
+    buffer_memory_barrier.srcAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+    buffer_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    buffer_memory_barrier.srcQueueFamilyIndex = graphics_presentation_compute_queue_family_index;
+    buffer_memory_barrier.dstQueueFamilyIndex = graphics_presentation_compute_queue_family_index;
+    buffer_memory_barrier.buffer = particle_buffer_handle;
+    buffer_memory_barrier.size = particle_descriptor_buffer_info.range;
+    buffer_memory_barrier.offset = 0;
 
-	vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1, &buffer_memory_barrier, 0, nullptr);
+    //vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1, &buffer_memory_barrier, 0, nullptr);
 
-	vkCmdBindPipeline(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_handles[0]);
-	vkCmdBindDescriptorSets(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_layout_handle, 0, 1, &compute_descriptor_set_handle, 0, 0);
+    vkCmdBindPipeline(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_handles[0]);
+    vkCmdBindDescriptorSets(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_layout_handle, 0, 1, &compute_descriptor_set_handle, 0, 0);
 
-	// First dispatch
-	vkCmdDispatch(compute_command_buffer_handle, SPH_GROUP_COUNT, 1, 1);
+    // First dispatch
+    vkCmdDispatch(compute_command_buffer_handle, SPH_GROUP_COUNT, 1, 1);
 
     // Compute to compute dependencies
     // First dispatch writes to a storage buffer, second dispatch reads from that storage buffer
-	buffer_memory_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-	buffer_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	buffer_memory_barrier.buffer = particle_buffer_handle;
-	buffer_memory_barrier.size = particle_descriptor_buffer_info.range;
-	buffer_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	buffer_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 0, nullptr);
+    buffer_memory_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    buffer_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    buffer_memory_barrier.buffer = particle_buffer_handle;
+    buffer_memory_barrier.size = particle_descriptor_buffer_info.range;
+    buffer_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    buffer_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 0, nullptr);
 
-	vkCmdBindPipeline(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_handles[1]);
-	vkCmdDispatch(compute_command_buffer_handle, SPH_GROUP_COUNT, 1, 1);
+    vkCmdBindPipeline(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_handles[1]);
+    vkCmdDispatch(compute_command_buffer_handle, SPH_GROUP_COUNT, 1, 1);
 
     // Second dispatch writes to a storage buffer, third dispatch reads from that storage buffer
-	buffer_memory_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-	buffer_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	buffer_memory_barrier.buffer = particle_buffer_handle;
-	buffer_memory_barrier.size = particle_descriptor_buffer_info.range;
-	buffer_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	buffer_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1, &buffer_memory_barrier, 0, nullptr);
+    buffer_memory_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    buffer_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    buffer_memory_barrier.buffer = particle_buffer_handle;
+    buffer_memory_barrier.size = particle_descriptor_buffer_info.range;
+    buffer_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    buffer_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1, &buffer_memory_barrier, 0, nullptr);
 
-	// Third dispatch
-	vkCmdBindPipeline(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_handles[2]);
-	vkCmdDispatch(compute_command_buffer_handle, SPH_GROUP_COUNT, 1, 1);
+    // Third dispatch
+    vkCmdBindPipeline(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_handles[2]);
+    vkCmdDispatch(compute_command_buffer_handle, SPH_GROUP_COUNT, 1, 1);
 
     // Third dispatch writes to a storage buffer. Draw consumes that buffer as an vertex attribute buffer.
-	buffer_memory_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-	buffer_memory_barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-	buffer_memory_barrier.buffer = particle_buffer_handle;
-	buffer_memory_barrier.size = particle_descriptor_buffer_info.range;
-	buffer_memory_barrier.srcQueueFamilyIndex = graphics_presentation_compute_queue_family_index;
-	buffer_memory_barrier.dstQueueFamilyIndex = graphics_presentation_compute_queue_family_index;
+    buffer_memory_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    buffer_memory_barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+    buffer_memory_barrier.buffer = particle_buffer_handle;
+    buffer_memory_barrier.size = particle_descriptor_buffer_info.range;
+    buffer_memory_barrier.srcQueueFamilyIndex = graphics_presentation_compute_queue_family_index;
+    buffer_memory_barrier.dstQueueFamilyIndex = graphics_presentation_compute_queue_family_index;
     vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1, &buffer_memory_barrier, 0, nullptr);
 
-	vkEndCommandBuffer(compute_command_buffer_handle);
+    vkEndCommandBuffer(compute_command_buffer_handle);
 }
 
 void application::create_graphics_pipeline_layout()
@@ -1188,32 +1191,32 @@ void application::create_graphics_pipeline_layout()
  {
     std::vector<VkPipelineShaderStageCreateInfo> shader_stage_create_infos;
     // create shader stage infos
-	{
-		VkShaderModule vertex_shader_module = create_shader_module_from_file("../shader/particle.vert.spv");
+    {
+        VkShaderModule vertex_shader_module = create_shader_module_from_file("../shader/particle.vert.spv");
 
-		VkShaderModule fragment_shader_module = create_shader_module_from_file("../shader/particle.frag.spv");
+        VkShaderModule fragment_shader_module = create_shader_module_from_file("../shader/particle.frag.spv");
 
-		VkPipelineShaderStageCreateInfo vertex_shader_stage_create_info;
-		vertex_shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		vertex_shader_stage_create_info.pNext = nullptr;
-		vertex_shader_stage_create_info.flags = 0;
-		vertex_shader_stage_create_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-		vertex_shader_stage_create_info.module = vertex_shader_module;
-		vertex_shader_stage_create_info.pName = "main";
-		vertex_shader_stage_create_info.pSpecializationInfo = nullptr;
+        VkPipelineShaderStageCreateInfo vertex_shader_stage_create_info;
+        vertex_shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertex_shader_stage_create_info.pNext = nullptr;
+        vertex_shader_stage_create_info.flags = 0;
+        vertex_shader_stage_create_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vertex_shader_stage_create_info.module = vertex_shader_module;
+        vertex_shader_stage_create_info.pName = "main";
+        vertex_shader_stage_create_info.pSpecializationInfo = nullptr;
 
-		VkPipelineShaderStageCreateInfo fragment_shader_stage_create_info;
-		fragment_shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		fragment_shader_stage_create_info.pNext = nullptr;
-		fragment_shader_stage_create_info.flags = 0;
-		fragment_shader_stage_create_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-		fragment_shader_stage_create_info.module = fragment_shader_module;
-		fragment_shader_stage_create_info.pName = "main";
-		fragment_shader_stage_create_info.pSpecializationInfo = nullptr;
+        VkPipelineShaderStageCreateInfo fragment_shader_stage_create_info;
+        fragment_shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        fragment_shader_stage_create_info.pNext = nullptr;
+        fragment_shader_stage_create_info.flags = 0;
+        fragment_shader_stage_create_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fragment_shader_stage_create_info.module = fragment_shader_module;
+        fragment_shader_stage_create_info.pName = "main";
+        fragment_shader_stage_create_info.pSpecializationInfo = nullptr;
 
-		shader_stage_create_infos.push_back(vertex_shader_stage_create_info);
-		shader_stage_create_infos.push_back(fragment_shader_stage_create_info);
-	}
+        shader_stage_create_infos.push_back(vertex_shader_stage_create_info);
+        shader_stage_create_infos.push_back(fragment_shader_stage_create_info);
+    }
 
     VkVertexInputBindingDescription vertex_input_binding_description;
     vertex_input_binding_description.binding = 0;
@@ -1432,7 +1435,7 @@ void application::create_graphics_command_buffers()
     }
 }
 
-void application::create_graphics_semaphores()
+void application::create_semaphores()
 {
     VkSemaphoreCreateInfo semaphore_create_info;
     semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -1446,6 +1449,18 @@ void application::create_graphics_semaphores()
     if (vkCreateSemaphore(logical_device_handle, &semaphore_create_info, nullptr, &render_finished_semaphore_handle) != VK_SUCCESS)
     {
         throw std::runtime_error("semaphore creation failed");
+    }
+}
+
+void application::create_fence()
+{
+    VkFenceCreateInfo fence_create_info;
+    fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_create_info.pNext = nullptr;
+    fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    if (vkCreateFence(logical_device_handle, &fence_create_info, nullptr, &compute_finished_fence_handle) != VK_SUCCESS)
+    {
+        throw std::runtime_error("compute fence creation failed");
     }
 }
 
@@ -1498,7 +1513,11 @@ uint32_t application::get_memory_type_index(uint32_t type_bits, VkMemoryProperty
 
 void application::main_loop()
 {
-    frame_start = std::chrono::steady_clock::now();
+    static std::chrono::high_resolution_clock::time_point frame_start;
+    static std::chrono::high_resolution_clock::time_point frame_end;
+    static int64_t total_frame_time_ns;
+
+    frame_start = std::chrono::high_resolution_clock::now();
 
     // process user inputs
     glfwPollEvents();
@@ -1507,26 +1526,26 @@ void application::main_loop()
     if (!paused)
     {
         step_forward();
-    }
-	render();
-
-    // measure performance
-    frame_end = std::chrono::steady_clock::now();
-    frame_time = std::chrono::duration_cast<std::chrono::duration<double>>(frame_end - frame_start).count();
-    std::stringstream ss;
-    ss.precision(3);
-    ss.setf(std::ios_base::fixed, std::ios_base::floatfield);
-    ss << "SPH Simulation (Vulkan) | frame " << frame_number << " | t: " << SPH_TIME_STEP * frame_number << " | frame time: " << frame_time * 1000 << " ms | particle count: " << SPH_PARTICLE_COUNT;
-    glfwSetWindowTitle(window, ss.str().c_str());
-
-    if (!paused)
-    {
         frame_number++;
     }
+
+    render();
+
+    frame_end = std::chrono::high_resolution_clock::now();
+
+    // measure performance
+    total_frame_time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(frame_end - frame_start).count();
+    std::stringstream title;
+    title.precision(3);
+    title.setf(std::ios_base::fixed, std::ios_base::floatfield);
+    title << "SPH Simulation (Vulkan) | "
+        "particle count: " << SPH_PARTICLE_COUNT << " | "
+        "frame " << frame_number << " | "
+        "frame time: " << 1e-6 * total_frame_time_ns << " ms | ";
+    glfwSetWindowTitle(window, title.str().c_str());
 }
 void application::step_forward()
 {
-
     // submit compute command buffer
     VkSubmitInfo compute_submit_info;
     compute_submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1538,59 +1557,48 @@ void application::step_forward()
     compute_submit_info.pCommandBuffers = &compute_command_buffer_handle;
     compute_submit_info.signalSemaphoreCount = 0;
     compute_submit_info.pSignalSemaphores = nullptr;
-    if (vkQueueSubmit(compute_queue_handle, 1, &compute_submit_info, VK_NULL_HANDLE) != VK_SUCCESS)
+    if (vkQueueSubmit(compute_queue_handle, 1, &compute_submit_info, compute_finished_fence_handle) != VK_SUCCESS)
     {
         throw std::runtime_error("compute queue submission failed");
     }
-    vkQueueWaitIdle(compute_queue_handle);
+    vkWaitForFences(logical_device_handle, 1, &compute_finished_fence_handle, VK_TRUE, UINT64_MAX);
+    vkResetFences(logical_device_handle, 1, &compute_finished_fence_handle);
 }
 
 void application::render()
 {
-    // sumbit graphics command buffer
-	uint32_t image_index;
-	VkResult result = vkAcquireNextImageKHR(logical_device_handle, swap_chain_handle, UINT64_MAX, image_available_semaphore_handle, VK_NULL_HANDLE, &image_index);
-	switch (result)
-	{
-	case VK_SUCCESS:
-	case VK_SUBOPTIMAL_KHR:
-	case VK_ERROR_OUT_OF_DATE_KHR:
-		break;
-	default:
-		throw std::runtime_error("image acquisition failed");
-	}
-    
-	VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	VkSubmitInfo submit_info;
-	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submit_info.pNext = nullptr;
-	submit_info.waitSemaphoreCount = 1;
-	submit_info.pWaitSemaphores = &image_available_semaphore_handle;
-	submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
-	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &graphics_command_buffer_handles[image_index];
-	submit_info.signalSemaphoreCount = 1;
-	submit_info.pSignalSemaphores = &render_finished_semaphore_handle;
+    // submit graphics command buffer
+    uint32_t image_index;
+    vkAcquireNextImageKHR(logical_device_handle, swap_chain_handle, UINT64_MAX, image_available_semaphore_handle, VK_NULL_HANDLE, &image_index);
+    VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkSubmitInfo submit_info;
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.pNext = nullptr,
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = &image_available_semaphore_handle;
+    submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &graphics_command_buffer_handles[image_index];
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &render_finished_semaphore_handle;
 
-	if (vkQueueSubmit(graphics_queue_handle, 1, &submit_info, VK_NULL_HANDLE) != VK_SUCCESS)
-	{
-		std::runtime_error("graphics queue submission failed");
-	}
+    if (vkQueueSubmit(graphics_queue_handle, 1, &submit_info, compute_finished_fence_handle) != VK_SUCCESS)
+    {
+        std::runtime_error("graphics queue submission failed");
+    }
+    // queue the image for presentation
+    VkPresentInfoKHR present_info;
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.pNext = nullptr;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &render_finished_semaphore_handle;
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &swap_chain_handle;
+    present_info.pImageIndices = &image_index;
+    present_info.pResults = nullptr;
+    vkQueuePresentKHR(presentation_queue_handle, &present_info);
 
-	// queue the image for presentation
-	VkPresentInfoKHR present_info;
-	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	present_info.pNext = nullptr;
-	present_info.waitSemaphoreCount = 1;
-	present_info.pWaitSemaphores = &render_finished_semaphore_handle;
-	present_info.swapchainCount = 1;
-	present_info.pSwapchains = &swap_chain_handle;
-	present_info.pImageIndices = &image_index;
-	present_info.pResults = nullptr;
-
-	result = vkQueuePresentKHR(graphics_queue_handle, &present_info);
     vkQueueWaitIdle(presentation_queue_handle);
-
 }
 
 } // namespace sph

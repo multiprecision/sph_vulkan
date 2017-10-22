@@ -16,6 +16,7 @@
 #include <chrono>
 #include <cstdint>
 #include <vector>
+#include <atomic>
 
 // constants
 #define SPH_PARTICLE_RADIUS 0.005f
@@ -69,7 +70,8 @@ private:
     void create_graphics_pipeline();
     void create_graphics_command_pool();
     void create_graphics_command_buffers();
-    void create_graphics_semaphores();
+    void create_semaphores();
+    void create_fence();
 
     void create_compute_descriptor_set_layout();
     void update_compute_descriptor_sets();
@@ -84,10 +86,7 @@ private:
     uint32_t window_height = 1000;
     uint32_t window_width = 1000;
     
-    std::chrono::steady_clock::time_point frame_start;
-    std::chrono::steady_clock::time_point frame_end;
-
-    uint64_t frame_number = 1;
+    std::atomic_uint64_t frame_number = 1;
     double frame_time = 0;
 
     bool paused = false;
@@ -161,6 +160,7 @@ private:
     // synchronization
     VkSemaphore image_available_semaphore_handle = VK_NULL_HANDLE;
     VkSemaphore render_finished_semaphore_handle = VK_NULL_HANDLE;
+    VkFence compute_finished_fence_handle = VK_NULL_HANDLE;
 
     // helper functions
 
