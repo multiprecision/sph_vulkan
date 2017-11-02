@@ -29,16 +29,6 @@
 namespace sph
 {
 
-
-struct particle
-{
-    glm::vec2 position;
-    glm::vec2 velocity;
-    glm::vec2 force;
-    float density;
-    float pressure;
-};
-
 class application
 {
 public:
@@ -56,7 +46,7 @@ private:
     void destroy_vulkan();
 
     void main_loop();
-    void step_forward();
+    void run_simulation();
     void render();
 
     void create_instance();
@@ -80,7 +70,6 @@ private:
     void create_graphics_command_pool();
     void create_graphics_command_buffers();
     void create_semaphores();
-    void create_fence();
 
     void create_compute_descriptor_set_layout();
     void update_compute_descriptor_sets();
@@ -101,7 +90,7 @@ private:
     bool paused = false;
     uint64_t scene_id = 0;
 
-    // vulkan
+    // vulkan resources
     VkInstance instance_handle = VK_NULL_HANDLE;
     VkDebugReportCallbackEXT debug_report_callback_handle = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device_handle = VK_NULL_HANDLE;
@@ -153,20 +142,56 @@ private:
     VkPipelineLayout compute_pipeline_layout_handle = VK_NULL_HANDLE;
     VkPipeline compute_pipeline_handles[3] = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE };
 
-    VkBuffer particle_buffer_handle = VK_NULL_HANDLE;
-    VkDeviceMemory particle_buffer_device_memory_handle = VK_NULL_HANDLE;
-    VkDescriptorBufferInfo particle_descriptor_buffer_info = { VK_NULL_HANDLE, 0, 0 };
+    VkBuffer packed_particles_buffer_handle = VK_NULL_HANDLE;
+    VkDeviceMemory packed_particles_memory_handle = VK_NULL_HANDLE;
 
     // synchronization
     VkSemaphore image_available_semaphore_handle = VK_NULL_HANDLE;
     VkSemaphore render_finished_semaphore_handle = VK_NULL_HANDLE;
-    VkFence compute_finished_fence_handle = VK_NULL_HANDLE;
 
     // helper functions
-
     VkShaderModule create_shader_module_from_file(std::string path_to_file);
     // get index to the memory type
     uint32_t get_memory_type_index(uint32_t type, VkMemoryPropertyFlags memory_property_flags);
+
+    // rendering routine
+    VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    uint32_t image_index;
+    VkSubmitInfo compute_submit_info
+    {
+        VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        nullptr,
+        0,
+        nullptr,
+        0,
+        1,
+        &compute_command_buffer_handle,
+        0,
+        nullptr
+    };
+    VkSubmitInfo graphics_submit_info
+    {
+        VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        nullptr,
+        1,
+        &image_available_semaphore_handle,
+        &wait_dst_stage_mask,
+        1,
+        VK_NULL_HANDLE,
+        1,
+        &render_finished_semaphore_handle
+    };
+    VkPresentInfoKHR present_info
+    {
+        VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        nullptr,
+        1,
+        &render_finished_semaphore_handle,
+        1,
+        &swap_chain_handle,
+        &image_index,
+        nullptr
+    };
 };
 
 } // namespace sph
