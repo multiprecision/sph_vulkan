@@ -803,7 +803,7 @@ void application::create_buffers()
         VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         nullptr,
         0,
-        3 * sizeof(glm::vec2) * SPH_PARTICLE_COUNT + 2 * sizeof(float) * SPH_PARTICLE_COUNT,
+        packed_buffer_size,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_SHARING_MODE_EXCLUSIVE,
         0,
@@ -838,7 +838,7 @@ void application::set_initial_particle_data()
         VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         nullptr,
         0,
-        3 * sizeof(glm::vec2) * SPH_PARTICLE_COUNT + 2 * sizeof(float) * SPH_PARTICLE_COUNT,
+        packed_buffer_size,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_SHARING_MODE_EXCLUSIVE,
         0,
@@ -867,12 +867,12 @@ void application::set_initial_particle_data()
     vkMapMemory(logical_device_handle, staging_buffer_memory_device_handle, 0, staging_buffer_memory_requirements.size, 0, &mapped_memory);
 
     // set the initial particles data
-    std::vector<glm::vec2> initial_particle_position(SPH_PARTICLE_COUNT);
+    std::vector<glm::vec2> initial_particle_position(SPH_NUM_PARTICLES);
 
     // test case 1: dropping a cube of water
     if (scene_id == 0)
     {
-        for (auto i = 0, x = 0, y = 0; i < SPH_PARTICLE_COUNT; i++)
+        for (auto i = 0, x = 0, y = 0; i < SPH_NUM_PARTICLES; i++)
         {
             initial_particle_position[i].x = -0.625f + SPH_PARTICLE_RADIUS * 2 * x;
             initial_particle_position[i].y = -1 + SPH_PARTICLE_RADIUS * 2 * y;
@@ -887,7 +887,7 @@ void application::set_initial_particle_data()
     // test case 2: dam break
     else
     {
-        for (auto i = 0, x = 0, y = 0; i < SPH_PARTICLE_COUNT; i++)
+        for (auto i = 0, x = 0, y = 0; i < SPH_NUM_PARTICLES; i++)
         {
             initial_particle_position[i].x = -1 + SPH_PARTICLE_RADIUS * 2 * x;
             initial_particle_position[i].y = 1 - SPH_PARTICLE_RADIUS * 2 * y;
@@ -900,8 +900,8 @@ void application::set_initial_particle_data()
         }
     }
     // zero all 
-    std::memset(mapped_memory, 0, 3 * sizeof(glm::vec2) * SPH_PARTICLE_COUNT + 2 * sizeof(float) * SPH_PARTICLE_COUNT);
-    std::memcpy(mapped_memory, initial_particle_position.data(), sizeof(glm::vec2) * SPH_PARTICLE_COUNT);
+    std::memset(mapped_memory, 0, packed_buffer_size);
+    std::memcpy(mapped_memory, initial_particle_position.data(), position_ssbo_size);
     vkUnmapMemory(logical_device_handle, staging_buffer_memory_device_handle);
 
     // submit a command buffer to copy staging buffer to the particle buffer 
@@ -1040,37 +1040,32 @@ void application::update_compute_descriptor_sets()
     {
         throw std::runtime_error("compute descriptor set allocation failed");
     }
-    constexpr uint64_t position_offset = 0;
-    constexpr uint64_t velocity_offset = sizeof(glm::vec2) * SPH_PARTICLE_COUNT;
-    constexpr uint64_t force_offset = velocity_offset + sizeof(glm::vec2) * SPH_PARTICLE_COUNT;
-    constexpr uint64_t density_offset = force_offset + sizeof(glm::vec2) * SPH_PARTICLE_COUNT;
-    constexpr uint64_t pressure_offset = density_offset + sizeof(float) * SPH_PARTICLE_COUNT;
     VkDescriptorBufferInfo descriptor_buffer_infos[]
     {
         {
             packed_particles_buffer_handle,
-            position_offset,
-            sizeof(glm::vec2) * SPH_PARTICLE_COUNT
+            position_ssbo_offset,
+            position_ssbo_size
         },
         {
             packed_particles_buffer_handle,
-            velocity_offset,
-            sizeof(glm::vec2) * SPH_PARTICLE_COUNT
+            velocity_ssbo_offset,
+            velocity_ssbo_size
         },
         {
             packed_particles_buffer_handle,
-            force_offset,
-            sizeof(glm::vec2) * SPH_PARTICLE_COUNT
+            force_ssbo_offset,
+            force_ssbo_size
         },
         {
             packed_particles_buffer_handle,
-            density_offset,
-            sizeof(float) * SPH_PARTICLE_COUNT
+            density_ssbo_offset,
+            density_ssbo_size
         },
         {
             packed_particles_buffer_handle,
-            pressure_offset,
-            sizeof(float) * SPH_PARTICLE_COUNT
+            pressure_ssbo_offset,
+            pressure_ssbo_size
         }
     };
     // write descriptor sets
@@ -1270,14 +1265,14 @@ void application::create_compute_command_buffer()
         graphics_presentation_compute_queue_family_index,
         packed_particles_buffer_handle,
         0,
-        3 * sizeof(glm::vec2) * SPH_PARTICLE_COUNT + 2 * sizeof(float) * SPH_PARTICLE_COUNT
+        packed_buffer_size
     };
 
     vkCmdBindDescriptorSets(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_layout_handle, 0, 1, &compute_descriptor_set_handle, 0, nullptr);
 
     // First dispatch
     vkCmdBindPipeline(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_handles[0]);
-    vkCmdDispatch(compute_command_buffer_handle, SPH_GROUP_COUNT, 1, 1);
+    vkCmdDispatch(compute_command_buffer_handle, SPH_NUM_WORK_GROUPS, 1, 1);
 
     // Barrier: compute to compute dependencies
     // First dispatch writes to a storage buffer, second dispatch reads from that storage buffer
@@ -1285,7 +1280,7 @@ void application::create_compute_command_buffer()
 
     // Second dispatch
     vkCmdBindPipeline(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_handles[1]);
-    vkCmdDispatch(compute_command_buffer_handle, SPH_GROUP_COUNT, 1, 1);
+    vkCmdDispatch(compute_command_buffer_handle, SPH_NUM_WORK_GROUPS, 1, 1);
 
     // Barrier: compute to compute dependencies
     // Second dispatch writes to a storage buffer, third dispatch reads from that storage buffer
@@ -1294,7 +1289,7 @@ void application::create_compute_command_buffer()
     // Third dispatch
     // Third dispatch writes to the storage buffer. Later, vkCmdDraw reads that buffer as a vertex buffer with vkCmdBindVertexBuffers.
     vkCmdBindPipeline(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_handles[2]);
-    vkCmdDispatch(compute_command_buffer_handle, SPH_GROUP_COUNT, 1, 1);
+    vkCmdDispatch(compute_command_buffer_handle, SPH_NUM_WORK_GROUPS, 1, 1);
 
     vkEndCommandBuffer(compute_command_buffer_handle);
 }
@@ -1577,7 +1572,7 @@ void application::create_graphics_command_buffers()
 
         VkDeviceSize offsets = 0;
         vkCmdBindVertexBuffers(graphics_command_buffer_handles[i], 0, 1, &packed_particles_buffer_handle, &offsets);
-        vkCmdDraw(graphics_command_buffer_handles[i], SPH_PARTICLE_COUNT, 1, 0, 0);
+        vkCmdDraw(graphics_command_buffer_handles[i], SPH_NUM_PARTICLES, 1, 0, 0);
 
         vkCmdEndRenderPass(graphics_command_buffer_handles[i]);
 
@@ -1680,7 +1675,7 @@ void application::main_loop()
     title.precision(3);
     title.setf(std::ios_base::fixed, std::ios_base::floatfield);
     title << "SPH Simulation (Vulkan) | "
-        "particle count: " << SPH_PARTICLE_COUNT << " | "
+        "particle count: " << SPH_NUM_PARTICLES << " | "
         "frame " << frame_number << " | "
         "frame time: " << 1e-6 * total_frame_time_ns << " ms | ";
     glfwSetWindowTitle(window, title.str().c_str());
