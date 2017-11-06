@@ -1255,19 +1255,6 @@ void application::create_compute_command_buffer()
         throw std::runtime_error("command buffer begin failed");
     }
 
-    VkBufferMemoryBarrier memory_barrier
-    {
-        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-        nullptr,
-        VK_ACCESS_SHADER_WRITE_BIT,
-        VK_ACCESS_SHADER_READ_BIT,
-        graphics_presentation_compute_queue_family_index,
-        graphics_presentation_compute_queue_family_index,
-        packed_particles_buffer_handle,
-        0,
-        packed_buffer_size
-    };
-
     vkCmdBindDescriptorSets(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_layout_handle, 0, 1, &compute_descriptor_set_handle, 0, nullptr);
 
     // First dispatch
@@ -1276,7 +1263,7 @@ void application::create_compute_command_buffer()
 
     // Barrier: compute to compute dependencies
     // First dispatch writes to a storage buffer, second dispatch reads from that storage buffer
-    vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1, &memory_barrier, 0, nullptr);
+    vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 0, nullptr);
 
     // Second dispatch
     vkCmdBindPipeline(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_handles[1]);
@@ -1284,12 +1271,14 @@ void application::create_compute_command_buffer()
 
     // Barrier: compute to compute dependencies
     // Second dispatch writes to a storage buffer, third dispatch reads from that storage buffer
-    vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1, &memory_barrier, 0, nullptr);
+    vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 0, nullptr);
 
     // Third dispatch
     // Third dispatch writes to the storage buffer. Later, vkCmdDraw reads that buffer as a vertex buffer with vkCmdBindVertexBuffers.
     vkCmdBindPipeline(compute_command_buffer_handle, VK_PIPELINE_BIND_POINT_COMPUTE, compute_pipeline_handles[2]);
     vkCmdDispatch(compute_command_buffer_handle, SPH_NUM_WORK_GROUPS, 1, 1);
+
+    vkCmdPipelineBarrier(compute_command_buffer_handle, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 0, nullptr);
 
     vkEndCommandBuffer(compute_command_buffer_handle);
 }
@@ -1687,7 +1676,6 @@ void application::run_simulation()
     {
         throw std::runtime_error("compute queue submission failed");
     }
-    vkQueueWaitIdle(compute_queue_handle);
 }
 
 void application::render()
