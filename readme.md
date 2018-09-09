@@ -1,5 +1,9 @@
 # SPH Fluid Simulation in Vulkan
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/6c0de0de6d684ce3b98d5a9fc60344b6)](https://www.codacy.com/app/multiprecision/sph_vulkan?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=multiprecision/sph_vulkan&amp;utm_campaign=Badge_Grade)
+
+[![Build status](https://ci.appveyor.com/api/projects/status/o0d9jq2wmuoydy36?svg=true)](https://ci.appveyor.com/project/multiprecision/sph-vulkan)
+
 Smoothed Particle Hydrodynamics implementation in Vulkan compute shader.
 
 Third-party libraries:
