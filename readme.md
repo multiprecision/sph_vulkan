@@ -5,6 +5,7 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/o0d9jq2wmuoydy36?svg=true)](https://ci.appveyor.com/project/multiprecision/sph-vulkan)
 
 Smoothed Particle Hydrodynamics implementation in Vulkan compute shader.
+Licensed under MIT License.
 
 Third-party libraries:
 
