@@ -1,22 +1,31 @@
 # SPH Fluid Simulation in Vulkan
 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/6c0de0de6d684ce3b98d5a9fc60344b6)](https://www.codacy.com/app/multiprecision/sph_vulkan?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=multiprecision/sph_vulkan&amp;utm_campaign=Badge_Grade)
-
 [![Build status](https://ci.appveyor.com/api/projects/status/o0d9jq2wmuoydy36?svg=true)](https://ci.appveyor.com/project/multiprecision/sph-vulkan)
 
-Smoothed Particle Hydrodynamics implementation in Vulkan compute shader.
-Licensed under MIT License.
+Smoothed Particle Hydrodynamics implementation in Vulkan compute shader. Licensed under MIT License.
 
-Third-party libraries:
+## Further reading
 
-1. Vulkan SDK/Vulkan Loader https://github.com/KhronosGroup/Vulkan-LoaderAndValidationLayers https://www.lunarg.com/vulkan-sdk/ 
-2. GLFW https://github.com/glfw/glfw
-3. GLM https://github.com/g-truc/glm
+https://github.com/multiprecision/undergraduate_thesis/blob/master/undergraduate_thesis.pdf
 
-Video:
+## Quickstart guide
+
+1. Install [Visual Studio 2022](https://visualstudio.microsoft.com/) with "Desktop development with C++" workload and "Windows 11 SDK (10.0.22000)" component.
+2. Make sure to have the latest graphics driver installed.
+3. Install the latest [Vulkan SDK](https://vulkan.lunarg.com/sdk/home) (version 1.3) and select GLM during installation.
+4. Install [Python 3](https://www.python.org/downloads/) to run shader compilation script.
+5. Run compile.py to compile shaders.
+6. Open sph.sln, build, and run.
+
+## Third-party libraries
+
+1. [Vulkan SDK (GLM is bundled)](https://vulkan.lunarg.com/sdk/home)
+2. [GLFW (bundled in the third_party folder)](https://github.com/glfw/glfw)
+
+## Short video
 
 https://www.youtube.com/watch?v=4LnaZmim81k
 
-OpenGL version:
+## OpenGL version
 
 https://github.com/multiprecision/sph_opengl

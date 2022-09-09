@@ -70,11 +70,11 @@ private:
     void select_physical_device();
     void create_logical_device();
     void get_device_queues();
-    void create_swap_chain();
-    void get_swap_chain_images();
-    void create_swap_chain_image_views();
+    void create_swapchain();
+    void get_swapchain_images();
+    void create_swapchain_image_views();
     void create_render_pass();
-    void create_swap_chain_frame_buffers();
+    void create_swapchain_frame_buffers();
 
     void create_descriptor_pool();
     void create_pipeline_cache();
@@ -95,7 +95,7 @@ private:
 
     void set_initial_particle_data();
 
-    GLFWwindow* window = nullptr;
+    GLFWwindow* window = NULL;
     uint32_t window_height = 1000;
     uint32_t window_width = 1000;
     
@@ -116,14 +116,12 @@ private:
     VkDevice logical_device_handle = VK_NULL_HANDLE;
     VkSurfaceKHR surface_handle = VK_NULL_HANDLE;
     VkSurfaceCapabilitiesKHR surface_capabilities;
-    std::vector<VkSurfaceFormatKHR> surface_formats;
+    VkSurfaceFormatKHR surface_format;
     std::vector<VkPresentModeKHR> surface_presentation_modes;
-    VkSwapchainKHR swap_chain_handle;
-    VkFormat swap_chain_image_format;
-    VkExtent2D swap_chain_extent;
-    std::vector<VkImage> swap_chain_image_handles;
-    std::vector<VkImageView> swap_chain_image_view_handles;
-    std::vector<VkFramebuffer> swap_chain_frame_buffer_handles;
+    VkSwapchainKHR swapchain_handle;
+    std::vector<VkImage> swapchain_image_handles;
+    std::vector<VkImageView> swapchain_image_view_handles;
+    std::vector<VkFramebuffer> swapchain_frame_buffer_handles;
 
     std::vector<VkShaderModule> shader_module_handles;
 
@@ -175,19 +173,19 @@ private:
     VkSubmitInfo compute_submit_info
     {
         VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        nullptr,
+        NULL,
         0,
-        nullptr,
+        NULL,
         0,
         1,
         &compute_command_buffer_handle,
         0,
-        nullptr
+        NULL
     };
     VkSubmitInfo graphics_submit_info
     {
         VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        nullptr,
+        NULL,
         1,
         &image_available_semaphore_handle,
         &wait_dst_stage_mask,
@@ -199,13 +197,13 @@ private:
     VkPresentInfoKHR present_info
     {
         VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        nullptr,
+        NULL,
         1,
         &render_finished_semaphore_handle,
         1,
-        &swap_chain_handle,
+        &swapchain_handle,
         &image_index,
-        nullptr
+        NULL
     };
     // ssbo sizes
     const uint64_t position_ssbo_size = sizeof(glm::vec2) * SPH_NUM_PARTICLES;
